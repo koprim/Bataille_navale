@@ -1,0 +1,18 @@
+{
+  "bateaux": {
+    "porte-avions": [],
+    "croiseur": [],
+    "contre-torpilleurs": [],
+    "sous-marin": [],
+    "torpilleur": []
+  },
+  "effets": [
+    "gagne"
+  ],
+  "nbreCoule": 1,
+  "nbreTouche": 1,
+  "pseudo": "anonymous",
+  "tirs": [
+    "A1"
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "bateaux": {
+    "porte-avions": [
+      "A1",
+      "B1",
+      "C1",
+      "D1",
+      "E1"
+    ],
+    "croiseur": [
+      "G1",
+      "G2",
+      "G3",
+      "G4"
+    ],
+    "contre-torpilleurs": [
+      "H1",
+      "H2",
+      "H3"
+    ],
+    "sous-marin": [
+      "I1",
+      "I2",
+      "I3"
+    ],
+    "torpilleur": [
+      "J1",
+      "J2"
+    ]
+  },
+  "tirs": [
+    "B1",
+    "C1",
+    "D1",
+    "E1",
+    "G1",
+    "G2",
+    "G3",
+    "G4",
+    "H1",
+    "H2",
+    "H3",
+    "I1",
+    "I2",
+    "I3",
+    "J1",
+    "J2"
+  ],
+  "effets": [],
+  "pseudo": "anonymous",
+  "nbreTouche": 0,
+  "nbreCoule": 0
+}

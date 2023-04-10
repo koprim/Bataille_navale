@@ -1,0 +1,12 @@
+{
+  "saisie": [
+    "1",
+    "1",
+    "foobar"
+  ],
+  "initialisation_flotte_par_dictionnaire_fixe": 2,
+  "initialisation_flotte_vide": 0,
+  "choix_flotte_manuel_console": 0,
+  "choix_flotte_aleatoire": 0,
+  "restauration_partie": 0
+}

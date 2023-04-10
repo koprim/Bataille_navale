@@ -1,0 +1,5368 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+	font-family: Helvetica, Arial, sans-serif;
+	font-size: 12px;
+	min-width: 1200px;
+	color: #999;
+}
+
+h1 {
+	font-size: 24px;
+	color: black;
+}
+
+h2 {
+	font-size: 16px;
+	color: black;
+}
+
+p {
+    color: black;
+}
+
+a {
+	color: #999;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+
+#environment td {
+	padding: 5px;
+	border: 1px solid #E6E6E6;
+}
+
+#environment tr:nth-child(odd) {
+	background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed, .passed .col-result {
+	color: green;
+}
+span.skipped, span.xfailed, span.rerun, .skipped .col-result, .xfailed .col-result, .rerun .col-result {
+	color: orange;
+}
+span.error, span.failed, span.xpassed, .error .col-result, .failed .col-result, .xpassed .col-result  {
+	color: red;
+}
+
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+
+#results-table {
+	border: 1px solid #e6e6e6;
+	color: #999;
+	font-size: 12px;
+	width: 100%
+}
+
+#results-table th, #results-table td {
+	padding: 5px;
+	border: 1px solid #E6E6E6;
+	text-align: left
+}
+#results-table th {
+	font-weight: bold
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+
+.log:only-child {
+	height: inherit
+}
+.log {
+	background-color: #e6e6e6;
+	border: 1px solid #e6e6e6;
+	color: black;
+	display: block;
+	font-family: "Courier New", Courier, monospace;
+	height: 230px;
+	overflow-y: scroll;
+	padding: 5px;
+	white-space: pre-wrap
+}
+div.image {
+	border: 1px solid #e6e6e6;
+	float: right;
+	height: 240px;
+	margin-left: 5px;
+	overflow: hidden;
+	width: 320px
+}
+div.image img {
+	width: 320px
+}
+.collapsed {
+	display: none;
+}
+.expander::after {
+	content: " (show details)";
+	color: #BBB;
+	font-style: italic;
+	cursor: pointer;
+}
+.collapser::after {
+	content: " (hide details)";
+	color: #BBB;
+	font-style: italic;
+	cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+	cursor: pointer;
+}
+
+.sort-icon {
+	font-size: 0px;
+	float: left;
+	margin-right: 5px;
+	margin-top: 5px;
+	/*triangle*/
+	width: 0;
+	height: 0;
+	border-left: 8px solid transparent;
+	border-right: 8px solid transparent;
+}
+
+.inactive .sort-icon {
+	/*finish triangle*/
+	border-top: 8px solid #E6E6E6;
+}
+
+.asc.active .sort-icon {
+	/*finish triangle*/
+	border-bottom: 8px solid #999;
+}
+
+.desc.active .sort-icon {
+	/*finish triangle*/
+	border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    toggle_sort_states(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+    var multiplier = reversed ? -1 : 1;
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+        return multiplier * (key_a >= key_b ? 1 : -1);
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>eval-echeance4.html</h1>
+    <p>Report generated on 12-Apr-2019 at 00:37:38 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v1.20.0</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{&apos;pytest&apos;: &apos;4.0.2&apos;, &apos;py&apos;: &apos;1.7.0&apos;, &apos;pluggy&apos;: &apos;0.8.0&apos;}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-3.16.0-4-amd64-x86_64-with-debian-8.10</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{&apos;timeout&apos;: &apos;1.3.3&apos;, &apos;remotedata&apos;: &apos;0.3.1&apos;, &apos;pythonpath&apos;: &apos;0.7.3&apos;, &apos;openfiles&apos;: &apos;0.3.1&apos;, &apos;mock&apos;: &apos;1.10.1&apos;, &apos;metadata&apos;: &apos;1.8.0&apos;, &apos;html&apos;: &apos;1.20.0&apos;, &apos;doctestplus&apos;: &apos;0.2.0&apos;, &apos;datadir-ng&apos;: &apos;1.1.0&apos;, &apos;arraydiff&apos;: &apos;0.3&apos;}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.7.1</td></tr></table>
+    <h2>Summary</h2>
+    <p>116 tests ran in 1.33 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">116 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestListeBateaux::test_liste_bateaux</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe_structure[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe_structure[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe[flotte_bateau_touche]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestInitialisationFlotteParDictionnaireFixe::test_initialisation_flotte_par_dictionnaire_fixe[flotte_presque_coulee]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux_excepte_porte_avions[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux_excepte_porte_avions[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux_excepte_sous_marin[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestPositionsDesBateaux::test_positions_des_bateaux_excepte_sous_marin[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte1-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte1-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte1-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte1-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte1-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte2-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte2-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte2-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte2-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_aucun_tir[flotte2-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte1-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte1-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte1-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte1-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte1-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte2-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte2-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte2-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte2-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_unique[flotte2-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte1-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte1-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte1-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte1-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte1-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte2-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte2-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte2-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte2-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstBateauCoule::test_est_bateau_coule_tous[flotte2-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstFlotteCoulee::test_est_flotte_coulee_aucun_tir[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstFlotteCoulee::test_est_flotte_coulee_aucun_tir[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstFlotteCoulee::test_est_flotte_coulee[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestEstFlotteCoulee::test_est_flotte_coulee[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_eau[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_eau[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_touche[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_touche[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte1-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte1-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte1-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte1-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte1-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte2-porte-avions]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte2-croiseur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte2-contre-torpilleurs]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte2-sous-marin]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestAnalyseTir::test_analyse_tir_coule[flotte2-torpilleur]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestSauvegardePartie::test_sauvegarde_partie[test1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestSauvegardePartie::test_sauvegarde_partie[test2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestRestaurationPartie::test_restauration_partie[partie1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestRestaurationPartie::test_restauration_partie[partie2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestRestaurationPartie::test_restauration_partie_fichier_manquant</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestTirAleatoire::test_tir_aleatoire[flotte_vide-tirages0-B1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestTirAleatoire::test_tir_aleatoire[flotte1-tirages1-E5]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreBateauxCoules::test_nombre_bateaux_coules[flotte_vide]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreBateauxCoules::test_nombre_bateaux_coules[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreBateauxCoules::test_nombre_bateaux_coules[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreBateauxCoules::test_nombre_bateaux_coules[flotte3]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreTirsTouchantFlotte::test_nombre_tirs_touchant_flotte[flotte_vide]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreTirsTouchantFlotte::test_nombre_tirs_touchant_flotte[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_flottes.py::TestNombreTirsTouchantFlotte::test_nombre_tirs_touchant_flotte[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel_stop[cas1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>C&#x27;est au tour du joueur 1
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel_stop[cas2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>C&#x27;est au tour du joueur 2
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel_stop[cas3]</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel_stop[cas4]</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | P p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X                   |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel[je_joue_je_gagne]</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>[&#x27;B1&#x27;, &#x27;F1&#x27;, &#x27;E1&#x27;, &#x27;B9&#x27;, &#x27;B2&#x27;, &#x27;D10&#x27;, &#x27;A4&#x27;, &#x27;J3&#x27;, &#x27;E3&#x27;, &#x27;A4&#x27;, &#x27;H3&#x27;, &#x27;H1&#x27;, &#x27;D1&#x27;, &#x27;J7&#x27;, &#x27;B4&#x27;, &#x27;J1&#x27;, &#x27;B3&#x27;, &#x27;C8&#x27;, &#x27;E2&#x27;, &#x27;D2&#x27;, &#x27;H4&#x27;, &#x27;A10&#x27;, &#x27;A3&#x27;, &#x27;F3&#x27;, &#x27;D3&#x27;, &#x27;B2&#x27;, &#x27;A5&#x27;, &#x27;D8&#x27;, &#x27;D2&#x27;, &#x27;A7&#x27;, &#x27;A2&#x27;, &#x27;C4&#x27;, &#x27;A1&#x27;, &#x27;B8&#x27;]
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X                   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X                   |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C c c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X   X             |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c C             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p             O     |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B | X X X X             |
+ C |                     |
+ D | X   X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   O             O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X   X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   O             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q Q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   O             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c O     O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |   X X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p P P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q Q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   O             O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c O     O |
+ B | p O             O   |
+ C | p     O       O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X X X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel[il_joue_je_gagne]</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>[&#x27;F1&#x27;, &#x27;B1&#x27;, &#x27;B9&#x27;, &#x27;E1&#x27;, &#x27;D10&#x27;, &#x27;B2&#x27;, &#x27;J3&#x27;, &#x27;A4&#x27;, &#x27;A4&#x27;, &#x27;E3&#x27;, &#x27;H1&#x27;, &#x27;H3&#x27;, &#x27;J7&#x27;, &#x27;D1&#x27;, &#x27;J1&#x27;, &#x27;B4&#x27;, &#x27;C8&#x27;, &#x27;B3&#x27;, &#x27;D2&#x27;, &#x27;E2&#x27;, &#x27;A10&#x27;, &#x27;H4&#x27;, &#x27;F3&#x27;, &#x27;A3&#x27;, &#x27;B2&#x27;, &#x27;D3&#x27;, &#x27;D8&#x27;, &#x27;A5&#x27;, &#x27;A7&#x27;, &#x27;D2&#x27;, &#x27;C4&#x27;, &#x27;A2&#x27;, &#x27;B8&#x27;, &#x27;A1&#x27;]
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X                   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X                   |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C c c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X                   |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O         q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D |                     |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X                 |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c c             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p                   |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X   X             |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C c C             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |                   O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p             O     |
+ D | p t               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X   X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S s S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c         |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X               |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s s               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p               O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B | X X X X             |
+ C |                     |
+ D | X                   |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   O             O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T               O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B | X X X X             |
+ C |                     |
+ D | X   X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P p           |
+ B | C C C C             |
+ C |                     |
+ D | Q q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   O             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c       O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X   X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   O             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c O     O |
+ B | p O             O   |
+ C | p             O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q Q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   O             O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c O     O |
+ B | p O             O   |
+ C | p     O       O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |   X X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p P P P P           |
+ B | C C C C             |
+ C |                     |
+ D | Q Q Q               |
+ E | S S S               |
+ F |                     |
+ G |                     |
+ H |     T T             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   O           O O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c C c c O     O |
+ B | p O           O O   |
+ C | p     O       O     |
+ D | p T           O   O |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X X X X X           |
+ B | X X X X             |
+ C |                     |
+ D | X X X               |
+ E | X X X               |
+ F |                     |
+ G |                     |
+ H |     X X             |
+ I |                     |
+ J |                     |
+---|---------------------|
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel[il_joue_il_gagne]</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>[&#x27;A3&#x27;, &#x27;F1&#x27;, &#x27;A4&#x27;, &#x27;B9&#x27;, &#x27;A6&#x27;, &#x27;D10&#x27;, &#x27;C1&#x27;, &#x27;J3&#x27;, &#x27;J9&#x27;, &#x27;A4&#x27;, &#x27;F3&#x27;, &#x27;H1&#x27;, &#x27;F1&#x27;, &#x27;J7&#x27;, &#x27;E2&#x27;, &#x27;J1&#x27;, &#x27;B1&#x27;, &#x27;C8&#x27;, &#x27;D1&#x27;, &#x27;D2&#x27;, &#x27;A5&#x27;, &#x27;A10&#x27;, &#x27;F2&#x27;, &#x27;F3&#x27;, &#x27;J8&#x27;, &#x27;B2&#x27;, &#x27;J10&#x27;, &#x27;D8&#x27;, &#x27;D2&#x27;, &#x27;A7&#x27;, &#x27;E1&#x27;, &#x27;C4&#x27;, &#x27;A1&#x27;, &#x27;B8&#x27;]
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F |                     |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X               |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |     X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B | X                   |
+ C | X                   |
+ D |                     |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | P                   |
+ C | P                   |
+ D | p t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |               O     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   X             O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   X             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P T                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   X             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p   O     O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E | X X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P T                 |
+ E | P T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   X             O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p   O     O |
+ B | c C c c         O   |
+ C |       O       O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X   X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E | X X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_jeu_console.py::TestBatailleManuel::test_bataille_manuel[je_joue_il_gagne]</td>
+          <td class="col-duration">0.10</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">----------------------------- Captured stdout call -----------------------------<br/>[&#x27;F1&#x27;, &#x27;A3&#x27;, &#x27;B9&#x27;, &#x27;A4&#x27;, &#x27;D10&#x27;, &#x27;A6&#x27;, &#x27;J3&#x27;, &#x27;C1&#x27;, &#x27;A4&#x27;, &#x27;J9&#x27;, &#x27;H1&#x27;, &#x27;F3&#x27;, &#x27;J7&#x27;, &#x27;F1&#x27;, &#x27;J1&#x27;, &#x27;E2&#x27;, &#x27;C8&#x27;, &#x27;B1&#x27;, &#x27;D2&#x27;, &#x27;D1&#x27;, &#x27;A10&#x27;, &#x27;A5&#x27;, &#x27;F3&#x27;, &#x27;F2&#x27;, &#x27;B2&#x27;, &#x27;J8&#x27;, &#x27;D8&#x27;, &#x27;J10&#x27;, &#x27;A7&#x27;, &#x27;D2&#x27;, &#x27;C4&#x27;, &#x27;E1&#x27;, &#x27;B8&#x27;, &#x27;A1&#x27;]
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   c c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c             |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X               |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C c c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                     |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q               |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X             |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c c         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |                     |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | p                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |                     |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p p p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H |     t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s s               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O               |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J |     O               |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F |     X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | s s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J |     O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |                     |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p t                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |                     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |                     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B |                     |
+ C | X                   |
+ D |                     |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | p                   |
+ C | P                   |
+ D | p t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |                   O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |               O     |
+ D | q q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B | X                   |
+ C | X                   |
+ D |                     |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | P                   |
+ C | P                   |
+ D | p t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X             |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p           |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X   X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C c C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O                   |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O                   |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X   X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S s S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |                 O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c c c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                 X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   X             O   |
+ C |               O     |
+ D |   X               O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q             O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X   |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X           O |
+ B |   X             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p         O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X                   |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P t                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   X             O   |
+ C |               O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p   O     O |
+ B | c C c c         O   |
+ C |               O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E |   X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P T                 |
+ E | p T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   X             O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p   O     O |
+ B | c C c c         O   |
+ C |       O       O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |     X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E | X X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+C&#x27;est au tour du joueur 1
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p   C C C C         |
+ B | P                   |
+ C | P                   |
+ D | P T                 |
+ E | P T                 |
+ F | S S S               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               Q Q Q |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A |       X     O     O |
+ B |   X           O O   |
+ C |       O       O     |
+ D |   X           O   O |
+ E |                     |
+ F | O   O               |
+ G |                     |
+ H | O                   |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+C&#x27;est au tour du joueur 2
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | p p p P p   O     O |
+ B | c C c c       O O   |
+ C |       O       O     |
+ D | q Q q         O   O |
+ E | s s s               |
+ F | O   O               |
+ G |                     |
+ H | O   t t             |
+ I |                     |
+ J | O   O       O       |
+---|---------------------|
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | X   X X X X         |
+ B | X                   |
+ C | X                   |
+ D | X X                 |
+ E | X X                 |
+ F | X X X               |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |               X X X |
+---|---------------------|
+</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestEstCaseValide::test_est_case_valide</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestEstCaseValideErreur::test_est_case_erreur</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestIndicesVersCaseLn::test_indices_vers_case_ln_return</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestIndicesVersCaseLn::test_indices_vers_case_ln_saisie_valide</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestCaseAleatoire::test_case_aleatoire</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_outils.py::TestJoueurAleatoire::test_joueur_aleatoire</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotteTextuelle::test_affiche_flotte_textuelle[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotteTextuelle::test_affiche_flotte_textuelle[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_tirs[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_tirs[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_cachee[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_cachee[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_tirs_cachee[flotte1]</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2dCouleurs::test_affiche_flotte_2d_couleurs_tirs_cachee[flotte2]</td>
+          <td class="col-duration">0.01</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_tirs[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_tirs[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_cachee[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_cachee[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_tirs_cachee[flotte1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestAfficheFlotte2d::test_affiche_flotte_2d_tirs_cachee[flotte2]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande[stop/A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande[stop/stop]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande[stop+sauv/A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande[stop+sauv/stop]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande[stop+sauv/sauv]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande_erreur[stop/Z1-A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande_erreur[stop+sauv/Z1-A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande_erreur[stop/toto-A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test_terminal.py::TestSaisieCibleValideOuCommande::test_saisie_cible_valide_ou_commande_erreur[stop+sauv/toto-A1]</td>
+          <td class="col-duration">0.00</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="empty log">No log output captured.</div></td></tr></tbody></table></body></html>

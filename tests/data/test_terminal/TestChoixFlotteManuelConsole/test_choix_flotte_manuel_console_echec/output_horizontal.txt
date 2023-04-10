@@ -1,0 +1,31 @@
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en H1, H2, H3
+   2) croiseur (4 cases), actuellement en G1, G2, G3, G4
+   3) porte-avions (5 cases), actuellement en A1, A2, A3, A4, A5
+   4) sous-marin (3 cases), actuellement en I1, I2, I3
+   5) torpilleur (2 cases), actuellement en J1, J2
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du sous-marin
+-> positionnement du sous-marin échoué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # # # #           |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G | # # # #             |
+ H | # # #               |
+ I | # # #               |
+ J | # #                 |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en H1, H2, H3
+   2) croiseur (4 cases), actuellement en G1, G2, G3, G4
+   3) porte-avions (5 cases), actuellement en A1, A2, A3, A4, A5
+   4) sous-marin (3 cases), actuellement en I1, I2, I3
+   5) torpilleur (2 cases), actuellement en J1, J2
+Taper stop pour stopper le choix de la flotte

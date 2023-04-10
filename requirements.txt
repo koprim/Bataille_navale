@@ -1,0 +1,6 @@
+pytest
+pytest-mock
+mock
+pytest-datadir_ng
+pillow
+pygame

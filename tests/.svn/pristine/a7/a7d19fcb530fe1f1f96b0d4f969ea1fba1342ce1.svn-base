@@ -1,0 +1,13 @@
+{
+  "saisie": [
+    "4",
+    "4",
+    "localhost:12800",
+    "foobar"
+  ],
+  "initialisation_flotte_par_dictionnaire_fixe": 0,
+  "initialisation_flotte_vide": 2,
+  "choix_flotte_manuel_console": 0,
+  "choix_flotte_aleatoire": 2,
+  "restauration_partie": 0
+}

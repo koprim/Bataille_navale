@@ -1,0 +1,127 @@
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement non positionné
+   2) croiseur (4 cases), actuellement non positionné
+   3) porte-avions (5 cases), actuellement non positionné
+   4) sous-marin (3 cases), actuellement non positionné
+   5) torpilleur (2 cases), actuellement non positionné
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du contre-torpilleurs
+-> positionnement du contre-torpilleurs en A1, A2, A3 effectué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # #               |
+ B |                     |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en A1, A2, A3
+   2) croiseur (4 cases), actuellement non positionné
+   3) porte-avions (5 cases), actuellement non positionné
+   4) sous-marin (3 cases), actuellement non positionné
+   5) torpilleur (2 cases), actuellement non positionné
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du croiseur
+-> positionnement du croiseur en B1, B2, B3, B4 effectué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # #               |
+ B | # # # #             |
+ C |                     |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en A1, A2, A3
+   2) croiseur (4 cases), actuellement en B1, B2, B3, B4
+   3) porte-avions (5 cases), actuellement non positionné
+   4) sous-marin (3 cases), actuellement non positionné
+   5) torpilleur (2 cases), actuellement non positionné
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du porte-avions
+-> positionnement du porte-avions en C1, C2, C3, C4, C5 effectué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # #               |
+ B | # # # #             |
+ C | # # # # #           |
+ D |                     |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en A1, A2, A3
+   2) croiseur (4 cases), actuellement en B1, B2, B3, B4
+   3) porte-avions (5 cases), actuellement en C1, C2, C3, C4, C5
+   4) sous-marin (3 cases), actuellement non positionné
+   5) torpilleur (2 cases), actuellement non positionné
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du sous-marin
+-> positionnement du sous-marin en D1, D2, D3 effectué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # #               |
+ B | # # # #             |
+ C | # # # # #           |
+ D | # # #               |
+ E |                     |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en A1, A2, A3
+   2) croiseur (4 cases), actuellement en B1, B2, B3, B4
+   3) porte-avions (5 cases), actuellement en C1, C2, C3, C4, C5
+   4) sous-marin (3 cases), actuellement en D1, D2, D3
+   5) torpilleur (2 cases), actuellement non positionné
+Taper stop pour stopper le choix de la flotte
+Choisir la case de début du torpilleur
+-> positionnement du torpilleur en E1, E2 effectué
+La flotte en 2D :
+   | 1 2 3 4 5 6 7 8 9 10|
+---|---------------------|
+ A | # # #               |
+ B | # # # #             |
+ C | # # # # #           |
+ D | # # #               |
+ E | # #                 |
+ F |                     |
+ G |                     |
+ H |                     |
+ I |                     |
+ J |                     |
+---|---------------------|
+
+Choisir le bateau à (re)positionner parmi :
+   1) contre-torpilleurs (3 cases), actuellement en A1, A2, A3
+   2) croiseur (4 cases), actuellement en B1, B2, B3, B4
+   3) porte-avions (5 cases), actuellement en C1, C2, C3, C4, C5
+   4) sous-marin (3 cases), actuellement en D1, D2, D3
+   5) torpilleur (2 cases), actuellement en E1, E2
+Taper stop pour stopper le choix de la flotte

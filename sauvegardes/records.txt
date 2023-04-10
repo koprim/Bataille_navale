@@ -1,0 +1,5 @@
+fichier xsb du puzzle;nombre de mouvements;pseudo du joueur
+fichier xsb du puzzle;nombre de mouvements;Zoua
+fichier xsb du puzzle;nombre de mouvements;RedRideZone
+novoban06.xsb;666;foo
+novoban07.xsb;99;bar
